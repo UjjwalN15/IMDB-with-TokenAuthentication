@@ -143,41 +143,35 @@ class LogoutView(APIView):
         request.user.auth_token.delete()
         return Response({"detail": "Logout Successful"}, status=status.HTTP_200_OK)
 
-class WatchlistViewSet(APIView):
-    permission_classes = [IsAuthenticated]
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_to_watchlist(request,pk):
+    try:
+        movie = Movies.objects.get(pk=pk)
+    except Movies.DoesNotExist:
+        return Response({'error':'Movie not found.'},status=status.HTTP_404_NOT_FOUND)
+    watchlist, created = Watchlist.objects.get_or_create(user=request.user, movie=movie)
+    
+    if created:
+        return Response({'message':f'{movie.title} added to watchlist.'},status=status.HTTP_201_CREATED)
+    else:
+        return Response({'message':f'{movie.title} already in watchlist.'},status=status.HTTP_400_BAD_REQUEST)
+    
 
-    def get(self, request):
-        watchlist = Watchlist.objects.filter(user=request.user)
-        serializer = WatchlistSerializer(watchlist, many=True)
-        return Response(serializer.data)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def view_watchlist(request):
+    watchlist_items = Watchlist.objects.filter(user=request.user)
+    movies = [item.movie for item in watchlist_items]
+    serializer = MovieSerializer(movies, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request):
-        movie_id = request.data.get('movie')
-        if not movie_id:
-            return Response({'detail': 'Movie ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            movie = Movies.objects.get(id=movie_id)
-        except Movies.DoesNotExist:
-            return Response({'detail': 'Movie not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        watchlist, created = Watchlist.objects.get_or_create(user=request.user, movie=movie)
-        if not created:
-            return Response({'detail': f'{movie.title} already in watchlist'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = WatchlistSerializer(watchlist)
-        return Response(f'{movie.title} added to the watchlist', status=status.HTTP_201_CREATED)
-
-    def delete(self, request):
-        movie_id = request.data.get('movie')
-        if not movie_id:
-            return Response({'detail': 'Movie ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            watchlist_item = Watchlist.objects.get(user=request.user, movie_id=movie_id)
-        except Watchlist.DoesNotExist:
-            return Response({'detail': 'Movie not in watchlist'}, status=status.HTTP_404_NOT_FOUND)
-
-        movie_name = watchlist_item.movie.title  # Assuming the movie model has a 'title' field
-        watchlist_item.delete()
-        return Response(f'{movie_name} deleted from watchlist', status=status.HTTP_204_NO_CONTENT)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def delete_watchlist(request,pk):
+    try:
+        watchlist_item = Watchlist.objects.get(user=request.user, movie_id=pk)
+    except Watchlist.DoesNotExist:
+        return Response({'error':'Movie not found in watchlist.'},status=status.HTTP_404_NOT_FOUND)
+    watchlist_item.delete()
+    return Response({'message':f'{watchlist_item.movie.title} deleted from watchlist.'},status=status.HTTP_204_NO_CONTENT)

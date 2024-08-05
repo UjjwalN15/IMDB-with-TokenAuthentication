@@ -15,5 +15,8 @@ urlpatterns = [
     path('verify/', VerifyOTP.as_view(), name='verify'),
     path('login/', Login, name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
-    path('watchlist/', WatchlistViewSet.as_view(), name='watchlist'),
+    # path('watchlist/', WatchlistViewSet.as_view(), name='watchlist'),
+    path('add_to_watchlist/<int:pk>/', add_to_watchlist, name='add_to_watchlist'),
+    path('view_watchlist/',view_watchlist, name='view_watchlist'),
+    path('delete_watchlist/<int:pk>/',delete_watchlist, name='delete_watchlist'),
 ]
