@@ -67,13 +67,19 @@ class Platform(models.Model):
     def __str__(self):
         return self.name
     
+class MovieGenre(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    def __str__(self):
+        return self.name
 
 class Movies(models.Model):
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, unique=True)
     description = models.TextField()
     release_year = models.DateField()
     active = models.BooleanField(default=True)
+    genre = models.ManyToManyField(MovieGenre, related_name="movies")
     platform = models.ForeignKey(Platform, on_delete=models.CASCADE, related_name='movies')
+    link = models.URLField(unique=True)
     added_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     
@@ -82,7 +88,11 @@ class Movies(models.Model):
     @property
     def rating(self):
         avg_rating = self.reviews.aggregate(average=Avg('ratings'))['average']
-        return avg_rating if avg_rating is not None else 3.5
+        # Default to a neutral rating if there are no reviews
+        if avg_rating is None:
+            return 5
+        # Calculate adjusted rating, ensuring it does not exceed 5
+        return min(avg_rating + 3.5, 10)
     
 class Reviews(models.Model):
     email = models.EmailField()

@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework.views import APIView
-from .emails import send_otp_for_verification_email
+from .emails import *
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -20,15 +20,28 @@ from rest_framework.authtoken.models import Token
 class MoviesApiViewSet(viewsets.ModelViewSet):
     serializer_class = MovieSerializer
     queryset = Movies.objects.all()
+    filterset_fields = ['platform','active']
+    search_fields = ['title']
     
+class MovieGenreApiView(viewsets.ModelViewSet):
+    serializer_class = MovieGenreSerializer
+    queryset = MovieGenre.objects.all()
+
 class PlatformApiViewSet(viewsets.ModelViewSet):
     serializer_class = PlatformSerializer
     queryset = Platform.objects.all()
+    filterset_fields = ['name']
+    search_fields = ['name']
     
 class ReviewsApiViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     queryset = Reviews.objects.all()
-    
+    # send_email_for_review_added(serializer_class.data['email','movie.title','ratings'])
+    def perform_create(self, serializer):
+        review = serializer.save()  # Save the review and get the instance
+        # Send email after review is successfully created
+        send_email_for_review_added(review.email, review.movie.title, review.ratings)
+      
 class ReviewsApiViewSetDetails(generics.ListAPIView):
     serializer_class = ReviewSerializer
 
@@ -153,6 +166,7 @@ def add_to_watchlist(request,pk):
     watchlist, created = Watchlist.objects.get_or_create(user=request.user, movie=movie)
     
     if created:
+        send_mail_add_to_watchlist(request.user.email, movie.title)
         return Response({'message':f'{movie.title} added to watchlist.'},status=status.HTTP_201_CREATED)
     else:
         return Response({'message':f'{movie.title} already in watchlist.'},status=status.HTTP_400_BAD_REQUEST)
@@ -166,7 +180,7 @@ def view_watchlist(request):
     serializer = MovieSerializer(movies, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
+@api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_watchlist(request,pk):
     try:
@@ -174,4 +188,5 @@ def delete_watchlist(request,pk):
     except Watchlist.DoesNotExist:
         return Response({'error':'Movie not found in watchlist.'},status=status.HTTP_404_NOT_FOUND)
     watchlist_item.delete()
+    send_mail_delete_watchlist(request.user.email, watchlist_item.movie.title)
     return Response({'message':f'{watchlist_item.movie.title} deleted from watchlist.'},status=status.HTTP_204_NO_CONTENT)

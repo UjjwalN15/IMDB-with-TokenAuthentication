@@ -22,20 +22,29 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = ['id','movie', 'email', 'full_name','ratings','comment','added_date']
         
     def validate_ratings(self, value):
-        if value < 1 or value > 5:
-            raise serializers.ValidationError("Ratings should be between 1 and 5")
+        if value < 1 or value > 10:
+            raise serializers.ValidationError("Ratings should be between 1 and 10")
         return value
+    
+class MovieGenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovieGenre
+        fields = '__all__'
 class MovieSerializer(serializers.ModelSerializer):
     # platform = serializers.StringRelatedField()
+    # genre = serializers.StringRelatedField(many=True, read_only=True)
+    genre = serializers.PrimaryKeyRelatedField(queryset=MovieGenre.objects.all(), many=True)
     rating = serializers.ReadOnlyField()
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         representation['platform'] = instance.platform.name if instance.platform else None
+        representation['genre'] = [genre.name for genre in instance.genre.all()]  # Display genre names in output
         return representation
     class Meta:
         model = Movies
-        fields = ['id','title','description','rating','release_year','active','platform','added_date','updated_date']
+        fields = ['id','title','description','rating','release_year','genre','active','link','platform','added_date','updated_date']
     # platform = PlatformSerializer()
+    
         
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
